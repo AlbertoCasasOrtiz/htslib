@@ -427,25 +427,49 @@ bcf_hrec_t *bcf_hdr_parse_line(const bcf_hdr_t *h, const char *line, int *len)
         p = ++q;
         while ( *q && *q==' ' ) { p++; q++; }
         int quoted = *p=='"' ? 1 : 0;
-        if ( quoted ) p++, q++;
-        while ( *q && *q != '\n' )
-        {
-            if ( quoted ) { if ( *q=='"' && !is_escaped(p,q) ) break; }
-            else
+        int bracketed = *p=='[' ? 1 : 0;
+        if ( bracketed ) {
+            p++, q++;
+            while ( *q && *q != '\n' )
             {
-                if ( *q=='<' ) nopen++;
-                if ( *q=='>' ) nopen--;
-                if ( !nopen ) break;
-                if ( *q==',' && nopen==1 ) break;
+                if ( bracketed ) { if ( *q==']' && !is_escaped(p,q) ) break; }
+                else
+                {
+                    if ( *q=='<' ) nopen++;
+                    if ( *q=='>' ) nopen--;
+                    if ( !nopen ) break;
+                    if ( *q==',' && nopen==1 ) break;
+                }
+                q++;
             }
-            q++;
+            const char *r = q;
+            while ( r > p && r[-1] == ' ' ) r--;
+            if (bcf_hrec_set_val(hrec, hrec->nkeys-1, p, r-p, bracketed) < 0)
+                goto fail;
+            if ( bracketed && *q==']' ) q++;
+            if ( *q=='>' ) { nopen--; q++; }
+        } else 
+        {
+            if ( quoted ) p++, q++;
+            while ( *q && *q != '\n' )
+            {
+                if ( quoted ) { if ( *q=='"' && !is_escaped(p,q) ) break; }
+                else
+                {
+                    if ( *q=='<' ) nopen++;
+                    if ( *q=='>' ) nopen--;
+                    if ( !nopen ) break;
+                    if ( *q==',' && nopen==1 ) break;
+                }
+                q++;
+            }
+            const char *r = q;
+            while ( r > p && r[-1] == ' ' ) r--;
+            if (bcf_hrec_set_val(hrec, hrec->nkeys-1, p, r-p, quoted) < 0)
+                goto fail;
+            if ( quoted && *q=='"' ) q++;
+            if ( *q=='>' ) { nopen--; q++; }
         }
-        const char *r = q;
-        while ( r > p && r[-1] == ' ' ) r--;
-        if (bcf_hrec_set_val(hrec, hrec->nkeys-1, p, r-p, quoted) < 0)
-            goto fail;
-        if ( quoted && *q=='"' ) q++;
-        if ( *q=='>' ) { nopen--; q++; }
     }
 
     // Skip to end of line
