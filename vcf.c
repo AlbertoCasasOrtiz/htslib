@@ -448,7 +448,7 @@ bcf_hrec_t *bcf_hdr_parse_line(const bcf_hdr_t *h, const char *line, int *len)
                 goto fail;
             if ( bracketed && *q==']' ) q++;
             if ( *q=='>' ) { nopen--; q++; }
-        } else 
+        } else
         {
             if ( quoted ) p++, q++;
             while ( *q && *q != '\n' )
